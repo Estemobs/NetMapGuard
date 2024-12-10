@@ -35,7 +35,7 @@ def get_active_connections():
 
         return list(set(connections))  # Suppression des doublons
     except Exception as e:
-        print(f"Erreur lors de l'analyse de l'IP {ip} : {e}")
+        print(f"Erreur lors de l'analyse de l'IP : {e}")
 
 # Fonction pour vérifier une IP avec Scamalytics
 def checkIP(ip):
