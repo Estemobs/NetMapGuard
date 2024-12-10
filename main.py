@@ -1,7 +1,7 @@
 import subprocess
 import requests
 from bs4 import BeautifulSoup
-from gmplot import gmplot
+from folium import Map, Marker
 
 # Blacklist des IP suspectes
 blacklist = ["192.168.1.25", "192.168.1.254"]
@@ -74,15 +74,14 @@ for ip in active_ips:
         coordinates[ip] = None  # IP suspecte, coordonnées non récupérées
 
 # Création de la carte avec gmplot
-gmap = gmplot.GoogleMapPlotter(20, 0, 2, apikey="VOTRE_CLE_API_GOOGLE_MAPS")  # Carte centrée globalement
-
-# Ajout des points sur la carte
+m = Map(location=[20, 0], zoom_start=2)
+gmap = gmplot.GoogleMapPlotter(20, 0, 2, apikey="VOTRE_CLE_API_GOOGLE_MAPS")
 for ip, coord in coordinates.items():
-    if coord:
-        color = 'green' if ip not in blacklist else 'red'
-        gmap.marker(coord[0], coord[1], color=color)
-        print(f"Ajout de l'IP {ip} à la carte aux coordonnées {coord}.")
+   if coord:
+         color = 'green' if ip not in blacklist else 'red'
+         gmap.marker(coord[0], coord[1], color=color)
+         print(f"Ajout de l'IP {ip} à la carte aux coordonnées {coord}.")
 
 # Sauvegarde de la carte dans un fichier HTML
-gmap.draw("carte_monde.html")
+m.save("carte_monde.html")
 print("Carte enregistrée : carte_monde.html")
