@@ -34,11 +34,49 @@ def get_active_connections():
                         connections.append(remote_ip)
 
         return list(set(connections))  # Suppression des doublons
-        
-
     except Exception as e:
-        print(f"Erreur lors de la récupération des connexions actives : {e}")
-        return []
+        print(f"Erreur lors de l'analyse de l'IP {ip} : {e}")
+
+# Fonction pour vérifier une IP avec Scamalytics
+def checkIP(ip):
+    try:
+        req = requests.get(f'https://scamalytics.com/ip/{ip}')
+        soup = BeautifulSoup(req.text, 'html.parser')
+        td = soup.find_all('td')
+        print(f"Analyse pour l'IP {ip}:")
+        for t in td:
+            print(t.text)
+    except Exception as e:
+        print(f"Erreur lors de l'analyse de l'IP {ip} : {e}")
+
+# Fonction pour obtenir les coordonnées géographiques d'une IP
+def getIPCoordinates(ip):
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip}")
+        data = response.json()
+        if data["status"] == "success":
+            return (data["lat"], data["lon"])
+        else:
+            print(f"Impossible de récupérer les coordonnées pour l'IP {ip}")
+            return None
+    except Exception as e:
+        print(f"Erreur lors de la récupération des coordonnées de {ip}: {e}")
+        return None
+
+# Récupération des connexions actives
+active_ips = get_active_connections()
+print(f"IP actives détectées : {active_ips}")
+
+# Récupération des coordonnées pour toutes les IP
+coordinates = {}
+for ip in active_ips:
+    if ip not in blacklist:
+        coord = getIPCoordinates(ip)
+        if coord:
+            coordinates[ip] = coord
+    else:
+        coordinates[ip] = None  # IP suspecte, coordonnées non récupérées    
+
 
 def create_streamlit_app():
        st.title("NetMapGuard")
@@ -96,6 +134,3 @@ def create_dash_app():
                )   
 
 
-# Sauvegarde de la carte dans un fichier HTML
-m.save("carte_monde.html")
-print("Carte enregistrée : carte_monde.html")
