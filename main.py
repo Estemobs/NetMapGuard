@@ -1,16 +1,9 @@
 import subprocess
 import requests
-import dash
-from dash.dependencies import Input, Output
 import plotly.graph_objs as go
-import streamlit as st
-from folium import Map, Marker
 from bs4 import BeautifulSoup
-from folium import Map, Marker
-
-# Blacklist des IP suspectes
-blacklist = ["192.168.1.25", "192.168.1.254"]
-
+from tornado.ioloop import IOLoop, PeriodicCallback
+from tornado.web import RequestHandler, Application
 
 # Fonction pour récupérer les connexions actives via netstat
 def get_active_connections():
@@ -23,21 +16,22 @@ def get_active_connections():
             print(f"Erreur lors de l'exécution de netstat : {error}")
             return []
 
-        # Extraction des IP distantes (colonnes 3 et 4 pour IPv4)
+        # Extraction des IP distantes (colonnes 5 pour IPv4)
         connections = []
         for line in output.splitlines():
             if "ESTABLISHED" in line or "SYN_SENT" in line:  # Connexions actives
                 parts = line.split()
-                if len(parts) > 2:
-                    remote_ip = parts[2].split(':')[0]
+                if len(parts) > 4:
+                    remote_ip = parts[4].split(':')[0]
                     if remote_ip not in ["127.0.0.1", "::1"]:  # Exclure localhost
                         connections.append(remote_ip)
 
         return list(set(connections))  # Suppression des doublons
     except Exception as e:
         print(f"Erreur lors de l'analyse de l'IP : {e}")
+        return []
 
-# Fonction pour vérifier une IP avec Scamalytics
+# Fonction pour vérifier une IP avec Scamalytics et obtenir son niveau de dangerosité
 def checkIP(ip):
     try:
         req = requests.get(f'https://scamalytics.com/ip/{ip}')
@@ -46,16 +40,31 @@ def checkIP(ip):
         print(f"Analyse pour l'IP {ip}:")
         for t in td:
             print(t.text)
+        # Exemple de récupération du niveau de dangerosité (à adapter selon la structure réelle de la page)
+        danger_level = "unknown"
+        for t in td:
+            if "Risk Score" in t.text:
+                score = int(t.text.split()[-1])
+                if score < 30:
+                    danger_level = "green"
+                elif score < 70:
+                    danger_level = "orange"
+                else:
+                    danger_level = "red"
+                break
+        return danger_level
     except Exception as e:
         print(f"Erreur lors de l'analyse de l'IP {ip} : {e}")
+        return "unknown"
 
-# Fonction pour obtenir les coordonnées géographiques d'une IP
+# Fonction pour obtenir les coordonnées géographiques d'une IP, son niveau de dangerosité et l'organisation associée
 def getIPCoordinates(ip):
     try:
         response = requests.get(f"http://ip-api.com/json/{ip}")
         data = response.json()
         if data["status"] == "success":
-            return (data["lat"], data["lon"])
+            danger_level = checkIP(ip)
+            return (data["lat"], data["lon"], data["city"], danger_level, data.get("org", "Unknown"))
         else:
             print(f"Impossible de récupérer les coordonnées pour l'IP {ip}")
             return None
@@ -63,74 +72,144 @@ def getIPCoordinates(ip):
         print(f"Erreur lors de la récupération des coordonnées de {ip}: {e}")
         return None
 
-# Récupération des connexions actives
-active_ips = get_active_connections()
-print(f"IP actives détectées : {active_ips}")
-
-# Récupération des coordonnées pour toutes les IP
+# Vérification et récupération des coordonnées pour toutes les IP
 coordinates = {}
-for ip in active_ips:
-    if ip not in blacklist:
+danger_levels = {}
+organizations = {}
+
+def update_coordinates():
+    active_ips = get_active_connections()
+    print(f"IP actives détectées : {active_ips}")
+
+    for ip in active_ips:
         coord = getIPCoordinates(ip)
         if coord:
-            coordinates[ip] = coord
-    else:
-        coordinates[ip] = None  # IP suspecte, coordonnées non récupérées    
+            coordinates[ip] = coord[:3]
+            danger_levels[ip] = coord[3]
+            organizations[ip] = coord[4]
+        else:
+            coordinates[ip] = None
+            danger_levels[ip] = "unknown"
+            organizations[ip] = "Unknown"
 
+# Classe pour gérer les requêtes HTTP
+class MainHandler(RequestHandler):
+    def get(self):
+        self.write("""
+        <html>
+        <head>
+            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+            <style>
+                body, html { margin: 0; padding: 0; width: 100%%; height: 100%%; display: flex; flex-direction: column; }
+                #map { width: 100%%; flex-grow: 1; }
+                #coordinates { width: 100%%; height: 25%%; overflow: auto; background: rgba(255, 255, 255, 0.8); }
+                #divider { width: 100%%; height: 5px; background: #ccc; cursor: ns-resize; }
+            </style>
+        </head>
+        <body>
+            <div id="map"></div>
+            <div id="divider"></div>
+            <div id="coordinates">
+                <ul id="ip-list"></ul>
+            </div>
+            <script>
+                function updateMap() {
+                    fetch('/data').then(response => response.json()).then(data => {
+                        var latitudes = data.coordinates.map(coord => coord ? coord[0] : null);
+                        var longitudes = data.coordinates.map(coord => coord ? coord[1] : null);
+                        var cities = data.coordinates.map(coord => coord ? coord[2] : null);
+                        var texts = data.ips.map((ip, index) => `IP: ${ip}, City: ${cities[index]}, Coordinates: (${latitudes[index]}, ${longitudes[index]}), Danger Level: ${data.danger_levels[index]}, Organization: ${data.organizations[index]}`);
+                        var colors = data.danger_levels.map(level => {
+                            if (level === 'green') return 'green';
+                            if (level === 'orange') return 'orange';
+                            if (level === 'red') return 'red';
+                            return 'black';
+                        });
 
-def create_streamlit_app():
-       st.title("NetMapGuard")
-       # Afficher les connexions actives
-       st.subheader("Connexions actives")
-       st.write(f"IP actives détectées : {get_active_connections}")
-       
-       # Afficher la carte
-       st.subheader("Carte")
-       st.plotly_chart(go.Figure(data=[go.Scattermapbox(
-           lat=[coord[0] for coord in coordinates.values()],
-           lon=[coord[1] for coord in coordinates.values()],
-           mode='markers',
-           marker=go.scattermapbox.Marker(size=9),
-           text=[f"IP: {ip}" for ip, coord in coordinates.items() if coord],
-           hoverinfo='text'
-       )]))
+                        var plotData = [{
+                            type: 'scattermapbox',
+                            lat: latitudes.filter(lat => lat !== null),
+                            lon: longitudes.filter(lon => lon !== null),
+                            mode: 'markers',
+                            marker: { size: 12, color: colors.filter((_, index) => latitudes[index] !== null) },
+                            text: texts.filter((_, index) => latitudes[index] !== null),
+                            hoverinfo: 'text'
+                        }];
+                        var layout = {
+                            mapbox: { style: 'open-street-map', center: { lat: 47.218371, lon: -1.553621 }, zoom: 2 },
+                            showlegend: false,
+                            margin: { t: 0, b: 0, l: 0, r: 0 }
+                        };
+                        Plotly.newPlot('map', plotData, layout);
 
-       # Afficher la liste des IP
-       st.subheader("Liste des IP")
-       for ip, coord in coordinates.items():
-           color = 'green' if coord else 'red'
-           st.write(f"{ip}: {'Localisée' if coord else 'Non localisée'} (Couleur: {color})")
+                        var ipList = document.getElementById('ip-list');
+                        ipList.innerHTML = '';
+                        data.ips.forEach((ip, index) => {
+                            var li = document.createElement('li');
+                            if (latitudes[index] !== null && longitudes[index] !== null) {
+                                li.textContent = `IP: ${ip}, City: ${cities[index]}, Coordinates: (${latitudes[index]}, ${longitudes[index]}), Danger Level: ${data.danger_levels[index]}, Organization: ${data.organizations[index]}`;
+                            } else {
+                                li.textContent = `IP: ${ip}, Coordinates: Not found, Danger Level: ${data.danger_levels[index]}, Organization: ${data.organizations[index]}`;
+                            }
+                            ipList.appendChild(li);
+                        });
+                    });
+                }
+                setInterval(updateMap, 10000);
+                updateMap();
 
-# Créer et exécuter l'application Streamlit
-if __name__ == '__main__':
-        create_streamlit_app()
+                const divider = document.getElementById('divider');
+                let isResizing = false;
 
+                divider.addEventListener('mousedown', function(e) {
+                    isResizing = true;
+                    document.addEventListener('mousemove', resize);
+                    document.addEventListener('mouseup', stopResize);
+                });
 
-def create_dash_app():
-       app = dash.Dash(__name__)
-       
-       @app.callback(
-           Output('map', 'children'),
-           [Input('ip-input', 'value')])
-       def update_map(ip):
-           coordinates = getIPCoordinates(ip)
-           if coordinates:
-               return go.Scattermapbox(
-                   lat=[coordinates[0]],
-                   lon=[coordinates[1]],
-                   mode='markers',
-                   marker=go.scattermapbox.Marker(size=9),
-                   text=[f"IP: {ip}"],
-                   hoverinfo='text'
-               )
-           else:
-               return go.Scattermapbox(
-                   lat=[None],
-                   lon=[None],
-                   mode='markers',
-                   marker=go.scattermapbox.Marker(size=9),
-                   text=['IP non localisée'],
-                   hoverinfo='text'
-               )   
+                function resize(e) {
+                    if (!isResizing) return;
+                    const map = document.getElementById('map');
+                    const coordinates = document.getElementById('coordinates');
+                    const totalHeight = window.innerHeight;
+                    const newMapHeight = e.clientY;
+                    const newCoordinatesHeight = totalHeight - newMapHeight - divider.offsetHeight;
+                    map.style.height = newMapHeight + 'px';
+                    coordinates.style.height = newCoordinatesHeight + 'px';
+                }
+
+                function stopResize() {
+                    isResizing = false;
+                    document.removeEventListener('mousemove', resize);
+                    document.removeEventListener('mouseup', stopResize);
+                }
+            </script>
+        </body>
+        </html>
+        """)
+
+class DataHandler(RequestHandler):
+    def get(self):
+        self.write({
+            "ips": list(coordinates.keys()),
+            "coordinates": list(coordinates.values()),
+            "danger_levels": list(danger_levels.values()),
+            "organizations": list(organizations.values())
+        })
+
+# Création et exécution de l'application Tornado
+def make_app():
+    return Application([
+        (r"/", MainHandler),
+        (r"/data", DataHandler),
+    ])
+
+if __name__ == "__main__":
+    app = make_app()
+    app.listen(8888)
+    # Mise à jour des coordonnées toutes les 10 secondes
+    periodic_callback = PeriodicCallback(update_coordinates, 10000)
+    periodic_callback.start()
+    IOLoop.current().start()
 
 
