@@ -26,28 +26,27 @@ def checkIP(ip):
     try:
         req = requests.get(f'https://scamalytics.com/ip/{ip}')
         soup = BeautifulSoup(req.text, 'html.parser')
+        risk_level = "unknown"
+        organization = "Unknown"
+        risk_div = soup.find('div', class_='panel_title')
+        if risk_div:
+            risk_level = risk_div.text.strip()
         td = soup.find_all('td')
         for t in td:
-            if "Risk Score" in t.text:
-                score = int(t.text.split()[-1])
-                if score < 30:
-                    return "green"
-                elif score < 70:
-                    return "orange"
-                else:
-                    return "red"
-        return "unknown"
+            if "Organization Name" in t.text:
+                organization = t.find_next_sibling('td').text.strip()
+        return risk_level, organization
     except Exception as e:
         print(f"Erreur lors de l'analyse de l'IP {ip} : {e}")
-        return "unknown"
+        return "unknown", "Unknown"
 
 def getIPCoordinates(ip):
     try:
         response = requests.get(f"http://ip-api.com/json/{ip}")
         data = response.json()
         if data["status"] == "success":
-            danger_level = checkIP(ip)
-            return (data["lat"], data["lon"], data["city"], danger_level, data.get("org", "Unknown"))
+            risk_level, organization = checkIP(ip)
+            return (data["lat"], data["lon"], data["city"], risk_level, organization)
         else:
             print(f"Impossible de récupérer les coordonnées pour l'IP {ip}")
             return None
@@ -101,9 +100,9 @@ class MainHandler(RequestHandler):
                         var cities = data.coordinates.map(coord => coord ? coord[2] : null);
                         var texts = data.ips.map((ip, index) => `IP: ${ip}, City: ${cities[index]}, Coordinates: (${latitudes[index]}, ${longitudes[index]}), Danger Level: ${data.danger_levels[index]}, Organization: ${data.organizations[index]}`);
                         var colors = data.danger_levels.map(level => {
-                            if (level === 'green') return 'green';
-                            if (level === 'orange') return 'orange';
-                            if (level === 'red') return 'red';
+                            if (level.includes('Low Risk')) return 'green';
+                            if (level.includes('Medium Risk')) return 'orange';
+                            if (level.includes('High Risk')) return 'red';
                             return 'black';
                         });
 
