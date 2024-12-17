@@ -4,53 +4,43 @@ from bs4 import BeautifulSoup
 from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.web import RequestHandler, Application
 
-# Fonction pour récupérer les connexions actives via netstat
 def get_active_connections():
     try:
         process = subprocess.Popen(["netstat", "-an"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        output, error = process.communicate()
+        output, _ = process.communicate()
 
-        if error:
-            print(f"Erreur lors de l'exécution de netstat : {error}")
-            return []
-
-        connections = []
+        connections = set()
         for line in output.splitlines():
             if "ESTABLISHED" in line or "SYN_SENT" in line:
                 parts = line.split()
                 if len(parts) > 4:
                     remote_ip = parts[4].split(':')[0]
                     if remote_ip not in ["127.0.0.1", "::1"]:
-                        connections.append(remote_ip)
-
-        return list(set(connections))
+                        connections.add(remote_ip)
+        return list(connections)
     except Exception as e:
         print(f"Erreur lors de l'analyse de l'IP : {e}")
         return []
 
-# Fonction pour vérifier une IP avec Scamalytics et obtenir son niveau de dangerosité
 def checkIP(ip):
     try:
         req = requests.get(f'https://scamalytics.com/ip/{ip}')
         soup = BeautifulSoup(req.text, 'html.parser')
         td = soup.find_all('td')
-        danger_level = "unknown"
         for t in td:
             if "Risk Score" in t.text:
                 score = int(t.text.split()[-1])
                 if score < 30:
-                    danger_level = "green"
+                    return "green"
                 elif score < 70:
-                    danger_level = "orange"
+                    return "orange"
                 else:
-                    danger_level = "red"
-                break
-        return danger_level
+                    return "red"
+        return "unknown"
     except Exception as e:
         print(f"Erreur lors de l'analyse de l'IP {ip} : {e}")
         return "unknown"
 
-# Fonction pour obtenir les coordonnées géographiques d'une IP, son niveau de dangerosité et l'organisation associée
 def getIPCoordinates(ip):
     try:
         response = requests.get(f"http://ip-api.com/json/{ip}")
