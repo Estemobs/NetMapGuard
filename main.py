@@ -117,10 +117,10 @@ class MainHandler(RequestHandler):
                         });
 
                         // Update previousData with new data
-                        previousData.latitudes = [...previousData.latitudes, ...latitudes.filter(lat => lat !== null)];
-                        previousData.longitudes = [...previousData.longitudes, ...longitudes.filter(lon => lon !== null)];
-                        previousData.colors = [...previousData.colors, ...newColors.filter((_, index) => latitudes[index] !== null)];
-                        previousData.texts = [...previousData.texts, ...texts.filter((_, index) => latitudes[index] !== null)];
+                        previousData.latitudes = latitudes.filter(lat => lat !== null);
+                        previousData.longitudes = longitudes.filter(lon => lon !== null);
+                        previousData.colors = newColors.filter((_, index) => latitudes[index] !== null);
+                        previousData.texts = texts.filter((_, index) => latitudes[index] !== null);
 
                         var plotData = [{
                             type: 'scattermapbox',
@@ -142,10 +142,11 @@ class MainHandler(RequestHandler):
                         ipList.innerHTML = '';
                         data.ips.forEach((ip, index) => {
                             var li = document.createElement('li');
+                            var color = colors[index];
                             if (latitudes[index] !== null && longitudes[index] !== null) {
-                                li.textContent = `IP: ${ip}, City: ${cities[index]}, Coordinates: (${latitudes[index]}, ${longitudes[index]}), Danger Level: ${data.danger_levels[index]}, Organization: ${data.organizations[index]}`;
+                                li.innerHTML = `<span style="color: ${color};">IP: ${ip}, City: ${cities[index]}, Coordinates: (${latitudes[index]}, ${longitudes[index]}), Danger Level: ${data.danger_levels[index]}, Organization: ${data.organizations[index]}</span>`;
                             } else {
-                                li.textContent = `IP: ${ip}, Coordinates: Not found, Danger Level: ${data.danger_levels[index]}, Organization: ${data.organizations[index]}`;
+                                li.innerHTML = `<span style="color: ${color};">IP: ${ip}, Coordinates: Not found, Danger Level: ${data.danger_levels[index]}, Organization: ${data.organizations[index]}</span>`;
                             }
                             ipList.appendChild(li);
                         });
