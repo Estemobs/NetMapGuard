@@ -93,6 +93,8 @@ class MainHandler(RequestHandler):
                 <ul id="ip-list"></ul>
             </div>
             <script>
+                var previousData = { latitudes: [], longitudes: [], colors: [], texts: [] };
+
                 function updateMap() {
                     fetch('/data').then(response => response.json()).then(data => {
                         var latitudes = data.coordinates.map(coord => coord ? coord[0] : null);
@@ -106,13 +108,26 @@ class MainHandler(RequestHandler):
                             return 'black';
                         });
 
+                        // Mark new points in blue
+                        var newColors = colors.map((color, index) => {
+                            if (!previousData.latitudes.includes(latitudes[index]) || !previousData.longitudes.includes(longitudes[index])) {
+                                return 'blue';
+                            }
+                            return color;
+                        });
+
+                        previousData.latitudes.push(...latitudes.filter(lat => lat !== null));
+                        previousData.longitudes.push(...longitudes.filter(lon => lon !== null));
+                        previousData.colors.push(...newColors.filter((_, index) => latitudes[index] !== null));
+                        previousData.texts.push(...texts.filter((_, index) => latitudes[index] !== null));
+
                         var plotData = [{
                             type: 'scattermapbox',
-                            lat: latitudes.filter(lat => lat !== null),
-                            lon: longitudes.filter(lon => lon !== null),
+                            lat: previousData.latitudes,
+                            lon: previousData.longitudes,
                             mode: 'markers',
-                            marker: { size: 12, color: colors.filter((_, index) => latitudes[index] !== null) },
-                            text: texts.filter((_, index) => latitudes[index] !== null),
+                            marker: { size: 12, color: previousData.colors },
+                            text: previousData.texts,
                             hoverinfo: 'text'
                         }];
                         var layout = {
