@@ -1,6 +1,5 @@
 import subprocess
 import requests
-import plotly.graph_objs as go
 from bs4 import BeautifulSoup
 from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.web import RequestHandler, Application
@@ -8,7 +7,6 @@ from tornado.web import RequestHandler, Application
 # Fonction pour récupérer les connexions actives via netstat
 def get_active_connections():
     try:
-        # Exécution de la commande netstat
         process = subprocess.Popen(["netstat", "-an"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         output, error = process.communicate()
 
@@ -16,17 +14,16 @@ def get_active_connections():
             print(f"Erreur lors de l'exécution de netstat : {error}")
             return []
 
-        # Extraction des IP distantes (colonnes 5 pour IPv4)
         connections = []
         for line in output.splitlines():
-            if "ESTABLISHED" in line or "SYN_SENT" in line:  # Connexions actives
+            if "ESTABLISHED" in line or "SYN_SENT" in line:
                 parts = line.split()
                 if len(parts) > 4:
                     remote_ip = parts[4].split(':')[0]
-                    if remote_ip not in ["127.0.0.1", "::1"]:  # Exclure localhost
+                    if remote_ip not in ["127.0.0.1", "::1"]:
                         connections.append(remote_ip)
 
-        return list(set(connections))  # Suppression des doublons
+        return list(set(connections))
     except Exception as e:
         print(f"Erreur lors de l'analyse de l'IP : {e}")
         return []
@@ -37,10 +34,6 @@ def checkIP(ip):
         req = requests.get(f'https://scamalytics.com/ip/{ip}')
         soup = BeautifulSoup(req.text, 'html.parser')
         td = soup.find_all('td')
-        print(f"Analyse pour l'IP {ip}:")
-        for t in td:
-            print(t.text)
-        # Exemple de récupération du niveau de dangerosité (à adapter selon la structure réelle de la page)
         danger_level = "unknown"
         for t in td:
             if "Risk Score" in t.text:
@@ -72,7 +65,6 @@ def getIPCoordinates(ip):
         print(f"Erreur lors de la récupération des coordonnées de {ip}: {e}")
         return None
 
-# Vérification et récupération des coordonnées pour toutes les IP
 coordinates = {}
 danger_levels = {}
 organizations = {}
@@ -92,7 +84,6 @@ def update_coordinates():
             danger_levels[ip] = "unknown"
             organizations[ip] = "Unknown"
 
-# Classe pour gérer les requêtes HTTP
 class MainHandler(RequestHandler):
     def get(self):
         self.write("""
@@ -197,7 +188,6 @@ class DataHandler(RequestHandler):
             "organizations": list(organizations.values())
         })
 
-# Création et exécution de l'application Tornado
 def make_app():
     return Application([
         (r"/", MainHandler),
@@ -207,7 +197,6 @@ def make_app():
 if __name__ == "__main__":
     app = make_app()
     app.listen(8888)
-    # Mise à jour des coordonnées toutes les 10 secondes
     periodic_callback = PeriodicCallback(update_coordinates, 10000)
     periodic_callback.start()
     IOLoop.current().start()
