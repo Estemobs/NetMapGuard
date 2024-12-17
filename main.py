@@ -116,10 +116,11 @@ class MainHandler(RequestHandler):
                             return color;
                         });
 
-                        previousData.latitudes.push(...latitudes.filter(lat => lat !== null));
-                        previousData.longitudes.push(...longitudes.filter(lon => lon !== null));
-                        previousData.colors.push(...newColors.filter((_, index) => latitudes[index] !== null));
-                        previousData.texts.push(...texts.filter((_, index) => latitudes[index] !== null));
+                        // Update previousData with new data
+                        previousData.latitudes = latitudes.filter(lat => lat !== null);
+                        previousData.longitudes = longitudes.filter(lon => lon !== null);
+                        previousData.colors = newColors.filter((_, index) => latitudes[index] !== null);
+                        previousData.texts = texts.filter((_, index) => latitudes[index] !== null);
 
                         var plotData = [{
                             type: 'scattermapbox',
