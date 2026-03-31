@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetMapGuard – Real-time Traffic Map</title>
+
+  <!-- Leaflet CSS (served locally) -->
+  <link rel="stylesheet" href="/static/leaflet.css" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ─────────────────────────────────────────────────── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 14px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    #topbar h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #58a6ff;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+    #status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #f85149;
+      flex-shrink: 0;
+    }
+    #status-dot.connected { background: #3fb950; animation: pulse 2s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    #topbar label { font-size: 0.78rem; color: #8b949e; white-space: nowrap; }
+    #topbar input, #topbar select {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 0.78rem;
+    }
+    #topbar input { width: 130px; }
+
+    .btn {
+      padding: 3px 10px;
+      border-radius: 4px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #c9d1d9;
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+    .btn:hover { background: #30363d; }
+    .btn.active { background: #1f6feb; border-color: #1f6feb; }
+
+    #conn-count {
+      margin-left: auto;
+      font-size: 0.78rem;
+      color: #8b949e;
+      white-space: nowrap;
+    }
+
+    /* ── Main area ───────────────────────────────────────────────── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #map { flex: 1; }
+
+    /* ── Side panel ──────────────────────────────────────────────── */
+    #panel {
+      width: 300px;
+      flex-shrink: 0;
+      background: #161b22;
+      border-left: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #panel-header {
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-bottom: 1px solid #30363d;
+      background: #0d1117;
+      color: #58a6ff;
+    }
+    #conn-list {
+      overflow-y: auto;
+      flex: 1;
+      font-size: 0.75rem;
+    }
+    .conn-item {
+      padding: 7px 12px;
+      border-bottom: 1px solid #21262d;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .conn-item:hover { background: #21262d; }
+    .conn-item.fading { opacity: 0.4; }
+    .conn-ip { font-weight: 600; color: #e3b341; }
+    .conn-geo { color: #8b949e; }
+    .conn-proc { color: #3fb950; }
+    .conn-port { color: #79c0ff; }
+
+    /* ── Beam SVG animations ─────────────────────────────────────── */
+    .leaflet-overlay-pane svg path.beam-active {
+      stroke-dasharray: 12 8;
+      animation: dash-flow 0.8s linear infinite;
+    }
+    @keyframes dash-flow {
+      to { stroke-dashoffset: -20; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="topbar">
+  <span id="status-dot" title="WebSocket status"></span>
+  <h1>🌐 NetMapGuard</h1>
+
+  <label>Filter IP/process:</label>
+  <input id="filter-text" type="text" placeholder="e.g. chrome, 8.8.8.8" />
+
+  <label>Protocol:</label>
+  <select id="filter-proto">
+    <option value="">All</option>
+    <option value="TCP">TCP</option>
+    <option value="UDP">UDP</option>
+  </select>
+
+  <button class="btn" id="btn-pause">⏸ Pause</button>
+  <button class="btn" id="btn-clear">🗑 Clear</button>
+
+  <span id="conn-count">0 connections</span>
+</div>
+
+<div id="main">
+  <div id="map"></div>
+  <div id="panel">
+    <div id="panel-header">Active Connections</div>
+    <div id="conn-list"></div>
+  </div>
+</div>
+
+<!-- Leaflet JS (served locally) -->
+<script src="/static/leaflet.js"></script>
+
+<script>
+// Fix Leaflet default icon image paths when served locally
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: '/static/images/marker-icon-2x.png',
+  iconUrl:       '/static/images/marker-icon.png',
+  shadowUrl:     '/static/images/marker-shadow.png',
+});
+
+// ── Map setup ─────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: true, attributionControl: true })
+  .setView([20, 10], 2);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
+  maxZoom: 18,
+}).addTo(map);
+
+// Dark overlay for OSM tiles
+map.getContainer().style.filter = 'invert(100%) hue-rotate(180deg) brightness(0.85) contrast(0.9)';
+
+// ── State ─────────────────────────────────────────────────────────────────
+let localGeo   = null;
+let localMarker = null;
+let paused     = false;
+
+// Map: connId -> { data, line, srcMarker, dstMarker, lastSeen, fading }
+const connLayers = new Map();
+
+const FADE_AFTER_MS  = 5000;   // start fading if not refreshed within 5 s
+const REMOVE_AFTER_MS = 8000;  // remove layer after 8 s of absence
+
+// ── Filters ───────────────────────────────────────────────────────────────
+function matchesFilter(conn) {
+  const text  = document.getElementById('filter-text').value.trim().toLowerCase();
+  const proto = document.getElementById('filter-proto').value;
+  if (proto && conn.proto !== proto) return false;
+  if (text) {
+    const haystack = [
+      conn.remote_ip,
+      conn.process || '',
+      (conn.geo && conn.geo.city)    || '',
+      (conn.geo && conn.geo.country) || '',
+      (conn.geo && conn.geo.org)     || '',
+    ].join(' ').toLowerCase();
+    if (!haystack.includes(text)) return false;
+  }
+  return true;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function riskColor(conn) {
+  const port = conn.remote_port;
+  if (port === 443 || port === 80 || port === 8080) return '#3fb950';
+  if (port < 1024) return '#e3b341';
+  return '#79c0ff';
+}
+
+function makeLocalIcon() {
+  return L.divIcon({
+    html: `<svg viewBox="0 0 24 24" width="22" height="22">
+             <circle cx="12" cy="12" r="10" fill="#58a6ff" stroke="white" stroke-width="2"/>
+             <circle cx="12" cy="12" r="4" fill="white"/>
+           </svg>`,
+    className: '',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+
+function makeRemoteIcon(color) {
+  return L.divIcon({
+    html: `<svg viewBox="0 0 16 16" width="14" height="14">
+             <circle cx="8" cy="8" r="7" fill="${color}" stroke="white" stroke-width="1.5" opacity="0.9"/>
+           </svg>`,
+    className: '',
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+}
+
+function popupContent(conn) {
+  const g = conn.geo || {};
+  return `<b style="color:#e3b341">${conn.remote_ip}</b><br/>
+          <span style="color:#79c0ff">${conn.proto} :${conn.remote_port}</span><br/>
+          ${g.city || ''}${g.city && g.country ? ', ' : ''}${g.country || ''}<br/>
+          ${g.org || ''}<br/>
+          ${g.asn || ''}<br/>
+          Process: <b style="color:#3fb950">${conn.process || '—'}</b>`;
+}
+
+// ── Render a connection ───────────────────────────────────────────────────
+function addOrRefreshConn(conn) {
+  if (!localGeo) return;
+  if (!conn.geo) return;
+  if (!matchesFilter(conn)) return;
+
+  const now = Date.now();
+  const id  = conn.id;
+
+  if (connLayers.has(id)) {
+    const layer = connLayers.get(id);
+    layer.lastSeen = now;
+    layer.data = conn;
+    layer.fading = false;
+    // Restore opacity if it was fading
+    layer.line.setStyle({ opacity: 0.85, color: riskColor(conn) });
+    if (layer.dstMarker) layer.dstMarker.setOpacity(1);
+    return;
+  }
+
+  const src = [localGeo.lat, localGeo.lon];
+  const dst = [conn.geo.lat, conn.geo.lon];
+  const color = riskColor(conn);
+
+  // Animated dashed polyline
+  const line = L.polyline([src, dst], {
+    color,
+    weight: 2,
+    opacity: 0.85,
+    dashArray: '10 6',
+    className: 'beam-active',
+  }).addTo(map);
+
+  // Destination marker
+  const dstMarker = L.marker(dst, { icon: makeRemoteIcon(color) })
+    .bindPopup(popupContent(conn))
+    .addTo(map);
+
+  connLayers.set(id, { data: conn, line, dstMarker, lastSeen: now, fading: false });
+}
+
+function removeConn(id) {
+  if (!connLayers.has(id)) return;
+  const layer = connLayers.get(id);
+  try { map.removeLayer(layer.line); } catch (_) {}
+  try { map.removeLayer(layer.dstMarker); } catch (_) {}
+  connLayers.delete(id);
+}
+
+function clearAll() {
+  connLayers.forEach((_, id) => removeConn(id));
+  renderPanel();
+}
+
+// ── Fading ticker ────────────────────────────────────────────────────────
+setInterval(() => {
+  const now = Date.now();
+  connLayers.forEach((layer, id) => {
+    const age = now - layer.lastSeen;
+    if (age > REMOVE_AFTER_MS) {
+      removeConn(id);
+    } else if (age > FADE_AFTER_MS) {
+      const opacity = 0.85 * (1 - (age - FADE_AFTER_MS) / (REMOVE_AFTER_MS - FADE_AFTER_MS));
+      layer.fading = true;
+      layer.line.setStyle({ opacity: Math.max(0.05, opacity) });
+      if (layer.dstMarker) layer.dstMarker.setOpacity(Math.max(0.05, opacity));
+    }
+  });
+  renderPanel();
+}, 500);
+
+// ── Side panel ────────────────────────────────────────────────────────────
+function renderPanel() {
+  const list = document.getElementById('conn-list');
+  const items = [...connLayers.values()];
+  document.getElementById('conn-count').textContent = `${items.length} connection${items.length !== 1 ? 's' : ''}`;
+
+  list.innerHTML = '';
+  items.sort((a, b) => b.lastSeen - a.lastSeen).forEach(layer => {
+    const c = layer.data;
+    const g = c.geo || {};
+    const div = document.createElement('div');
+    div.className = 'conn-item' + (layer.fading ? ' fading' : '');
+    div.innerHTML = `
+      <div class="conn-ip">${c.remote_ip}</div>
+      <div class="conn-geo">${g.city || ''}${g.city && g.country ? ', ' : ''}${g.country || ''}</div>
+      <div class="conn-geo">${g.org || ''}</div>
+      <div>
+        <span class="conn-proc">${c.process || '—'}</span>
+        <span class="conn-port"> ${c.proto}:${c.remote_port}</span>
+      </div>`;
+    div.addEventListener('click', () => {
+      if (layer.dstMarker) {
+        map.setView([g.lat, g.lon], 6);
+        layer.dstMarker.openPopup();
+      }
+    });
+    list.appendChild(div);
+  });
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────
+const dot = document.getElementById('status-dot');
+let ws = null;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+  ws.addEventListener('open', () => {
+    dot.classList.add('connected');
+    console.log('[NetMapGuard] WebSocket connected');
+  });
+
+  ws.addEventListener('close', () => {
+    dot.classList.remove('connected');
+    console.log('[NetMapGuard] WebSocket closed, reconnecting in 3 s …');
+    setTimeout(connect, 3000);
+  });
+
+  ws.addEventListener('error', () => {
+    ws.close();
+  });
+
+  ws.addEventListener('message', ({ data }) => {
+    if (paused) return;
+    try {
+      const msg = JSON.parse(data);
+      handleMessage(msg);
+    } catch (e) {
+      console.error('[NetMapGuard] bad JSON', e);
+    }
+  });
+}
+
+function handleMessage(msg) {
+  if (msg.type === 'local' || (msg.local && msg.type === 'delta')) {
+    // Update local marker
+    const loc = msg.local;
+    if (loc && loc.lat != null && !(loc.lat === 0 && loc.lon === 0)) {
+      localGeo = loc;
+      if (localMarker) map.removeLayer(localMarker);
+      localMarker = L.marker([loc.lat, loc.lon], { icon: makeLocalIcon() })
+        .bindPopup(`<b>Your machine</b><br/>IP: ${loc.ip}<br/>${loc.city || ''}, ${loc.country || ''}`)
+        .addTo(map);
+    }
+  }
+
+  if (msg.type === 'delta') {
+    (msg.added || []).forEach(conn => addOrRefreshConn(conn));
+    (msg.removed || []).forEach(id => {
+      // Mark as fading instead of immediate removal (fading ticker handles actual removal)
+      if (connLayers.has(id)) {
+        connLayers.get(id).lastSeen = Date.now() - FADE_AFTER_MS;
+      }
+    });
+  }
+}
+
+connect();
+
+// ── Controls ──────────────────────────────────────────────────────────────
+document.getElementById('btn-pause').addEventListener('click', function () {
+  paused = !paused;
+  this.textContent = paused ? '▶ Resume' : '⏸ Pause';
+  this.classList.toggle('active', paused);
+});
+
+document.getElementById('btn-clear').addEventListener('click', clearAll);
+
+document.getElementById('filter-text').addEventListener('input', () => {
+  // Re-apply filter: remove non-matching, keep matching
+  connLayers.forEach((layer, id) => {
+    if (!matchesFilter(layer.data)) {
+      removeConn(id);
+    }
+  });
+});
+document.getElementById('filter-proto').addEventListener('change', () => {
+  connLayers.forEach((layer, id) => {
+    if (!matchesFilter(layer.data)) {
+      removeConn(id);
+    }
+  });
+});
+</script>
+</body>
+</html>
