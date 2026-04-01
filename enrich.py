@@ -19,12 +19,22 @@ _SESSION.headers.update({"User-Agent": "NetMapGuard/2.0"})
 
 def _fetch_geo(url: str) -> Optional[dict]:
     try:
-        resp = _SESSION.get(url, timeout=5)
+        resp = _SESSION.get(url, timeout=2)
         resp.raise_for_status()
         data = resp.json()
         if data.get("status") == "success":
             return data
+    except requests.ConnectTimeout:
+        # Network timeout - likely due to firewall/DNS block
+        pass
+    except requests.ReadTimeout:
+        # Server timeout
+        pass
+    except requests.RequestException:
+        # Any other request error
+        pass
     except Exception:
+        # JSON parsing or other errors
         pass
     return None
 

@@ -57,10 +57,14 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.send_text(json.dumps({"type": "local", "local": local}))
         # Then wait for disconnect (all state updates come via the broadcaster)
         while True:
-            # Keep the connection alive by listening for pings / any client msg
-            await asyncio.wait_for(websocket.receive_text(), timeout=30)
-    except (WebSocketDisconnect, asyncio.TimeoutError, Exception):
-        pass
+            try:
+                # Listen for client msg with 10s timeout 
+                await asyncio.wait_for(websocket.receive_text(), timeout=10)
+            except asyncio.TimeoutError:
+                # Send heartbeat to keep connection alive
+                await websocket.send_text(json.dumps({"type": "ping"}))
+    except (WebSocketDisconnect, Exception) as e:
+        logger.debug("WebSocket error: %s", type(e).__name__)
     finally:
         _clients.discard(websocket)
         logger.info("Client disconnected (total %d)", len(_clients))
@@ -97,20 +101,34 @@ async def poll_loop() -> None:
     logger.info("Local location: %s", _cached_local)
 
     prev_ids: Set[str] = set()
+    geo_failures = 0
 
     while True:
         try:
             connections_raw = await asyncio.to_thread(get_connections)
+            logger.debug("Polled %d raw connections", len(connections_raw))
 
             # Enrich each connection with geo data (cached after first call)
             enriched = []
             for conn in connections_raw:
-                geo = await asyncio.to_thread(geolocate, conn.remote_ip)
-                if geo is None:
-                    continue  # skip IPs we can't locate
-                entry = conn.to_dict()
-                entry["geo"] = geo
-                enriched.append(entry)
+                try:
+                    geo = await asyncio.wait_for(
+                        asyncio.to_thread(geolocate, conn.remote_ip),
+                        timeout=1.5  # Max 1.5s per IP
+                    )
+                    if geo is None:
+                        continue  # skip IPs we can't locate
+                    entry = conn.to_dict()
+                    entry["geo"] = geo
+                    enriched.append(entry)
+                except asyncio.TimeoutError:
+                    logger.debug("Timeout geolocating IP: %s", conn.remote_ip)
+                    geo_failures += 1
+                    continue
+                except Exception as e:
+                    logger.debug("Error geolocating %s: %s", conn.remote_ip, e)
+                    geo_failures += 1
+                    continue
 
             current_ids = {e["id"] for e in enriched}
 
@@ -118,6 +136,7 @@ async def poll_loop() -> None:
             removed_ids = list(prev_ids - current_ids)
 
             if added or removed_ids:
+                logger.info("Broadcasting: +%d, -%d connections", len(added), len(removed_ids))
                 await _broadcast(
                     {
                         "type": "delta",
@@ -127,10 +146,14 @@ async def poll_loop() -> None:
                     }
                 )
 
+            if geo_failures > 0:
+                logger.warning("Had %d geolocation failures this cycle", geo_failures)
+                geo_failures = 0
+
             prev_ids = current_ids
 
-        except Exception:
-            logger.exception("Error in poll_loop")
+        except Exception as e:
+            logger.exception("Error in poll_loop: %s", e)
 
         await asyncio.sleep(_POLL_INTERVAL)
 

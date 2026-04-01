@@ -397,6 +397,11 @@ function connect() {
 }
 
 function handleMessage(msg) {
+  // Ignore heartbeat pings
+  if (msg.type === 'ping') {
+    return;
+  }
+
   if (msg.type === 'local' || (msg.local && msg.type === 'delta')) {
     // Update local marker
     const loc = msg.local;
