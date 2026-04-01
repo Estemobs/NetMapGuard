@@ -128,7 +128,7 @@ NetMapGuard/
 │   └── images/         Map icons
 ├── tests/              Unit tests (29 tests)
 ├── requirements.txt    Dependencies
-└── old-code/           Legacy code archive
+└── README.md           This file
 ```
 
 ### Modules
