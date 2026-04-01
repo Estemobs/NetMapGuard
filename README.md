@@ -26,19 +26,30 @@ When you run NetMapGuard, it opens a web interface showing:
 
 ## Installation
 
+### 1. Clone the repository
+
 ```bash
-# 1 – Clone the repository
 git clone https://github.com/Estemobs/NetMapGuard.git
 cd NetMapGuard
+```
 
-# 2 – Create and activate a virtual environment (recommended)
-python -m venv .venv
-# Linux / macOS
+### 2. Create and activate a virtual environment
+
+**Linux / macOS:**
+```bash
+python3 -m venv .venv
 source .venv/bin/activate
-# Windows
-.venv\Scripts\activate
+```
 
-# 3 – Install dependencies
+**Windows:**
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+### 3. Install dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
@@ -47,7 +58,7 @@ pip install -r requirements.txt
 ## Running
 
 ```bash
-python -m netmapguard
+python -m __main__
 ```
 
 This will:
@@ -58,7 +69,7 @@ This will:
 ### Options
 
 ```
-python -m netmapguard --help
+python -m __main__ --help
 
 options:
   --host HOST           Bind host (default: 127.0.0.1)
@@ -70,7 +81,7 @@ options:
 ### Example – expose on the local network
 
 ```bash
-python -m netmapguard --host 0.0.0.0 --port 8888
+python -m __main__ --host 0.0.0.0 --port 8888
 ```
 
 ---
@@ -103,15 +114,32 @@ ip-api.com geolocation (cached)   ← enrich.py
   Leaflet.js map in browser        ← static/index.html
 ```
 
+### Project Structure
+
+```
+NetMapGuard/
+├── capture.py          Poll network connections via psutil
+├── enrich.py           Geolocate IPs via ip-api.com (cached)
+├── server.py           FastAPI app: serve UI + WebSocket broadcaster
+├── __main__.py         CLI entry point
+├── static/             Frontend assets
+│   ├── index.html      Leaflet.js map interface
+│   ├── leaflet.js/css  Map library
+│   └── images/         Map icons
+├── tests/              Unit tests (29 tests)
+├── requirements.txt    Dependencies
+└── old-code/           Legacy code archive
+```
+
 ### Modules
 
-| Module | Responsibility |
+| File | Responsibility |
 |---|---|
-| `netmapguard/capture.py` | Poll `psutil.net_connections()`, filter public IPs, resolve process names |
-| `netmapguard/enrich.py` | Geolocate IPs via ip-api.com with TTL cache (1 h) |
-| `netmapguard/server.py` | FastAPI app: serve UI + WebSocket broadcaster |
-| `netmapguard/__main__.py` | CLI entry point |
-| `netmapguard/static/index.html` | Leaflet.js frontend: map, animated beams, sidebar, filters |
+| `capture.py` | Poll `psutil.net_connections()`, filter public IPs, resolve process names |
+| `enrich.py` | Geolocate IPs via ip-api.com with TTL cache (1 h) |
+| `server.py` | FastAPI app: serve UI + WebSocket broadcaster |
+| `__main__.py` | CLI entry point |
+| `static/index.html` | Leaflet.js frontend: map, animated beams, sidebar, filters |
 
 ---
 
