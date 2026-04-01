@@ -58,7 +58,7 @@ pip install -r requirements.txt
 ## Running
 
 ```bash
-python -m __main__
+python main.py
 ```
 
 This will:
@@ -69,7 +69,7 @@ This will:
 ### Options
 
 ```
-python -m __main__ --help
+python main.py --help
 
 options:
   --host HOST           Bind host (default: 127.0.0.1)
@@ -81,7 +81,7 @@ options:
 ### Example – expose on the local network
 
 ```bash
-python -m __main__ --host 0.0.0.0 --port 8888
+python main.py --host 0.0.0.0 --port 8888
 ```
 
 ---
@@ -90,7 +90,7 @@ python -m __main__ --host 0.0.0.0 --port 8888
 
 | Platform | Notes |
 |---|---|
-| **Linux** | `psutil.net_connections()` requires either `root` **or** running as the same user as the processes you want to see. Run with `sudo` for a complete view: `sudo python -m netmapguard` |
+| **Linux** | `psutil.net_connections()` requires either `root` **or** running as the same user as the processes you want to see. Run with `sudo` for a complete view: `sudo python main.py` |
 | **macOS** | Same as Linux. Full process names visible only for your own processes unless `sudo` is used. |
 | **Windows** | No special permissions needed for standard TCP/UDP connections. Run as Administrator for complete process names. |
 
@@ -121,7 +121,7 @@ NetMapGuard/
 ├── capture.py          Poll network connections via psutil
 ├── enrich.py           Geolocate IPs via ip-api.com (cached)
 ├── server.py           FastAPI app: serve UI + WebSocket broadcaster
-├── __main__.py         CLI entry point
+├── main.py             CLI entry point
 ├── static/             Frontend assets
 │   ├── index.html      Leaflet.js map interface
 │   ├── leaflet.js/css  Map library
@@ -138,7 +138,7 @@ NetMapGuard/
 | `capture.py` | Poll `psutil.net_connections()`, filter public IPs, resolve process names |
 | `enrich.py` | Geolocate IPs via ip-api.com with TTL cache (1 h) |
 | `server.py` | FastAPI app: serve UI + WebSocket broadcaster |
-| `__main__.py` | CLI entry point |
+| `main.py` | CLI entry point |
 | `static/index.html` | Leaflet.js frontend: map, animated beams, sidebar, filters |
 
 ---

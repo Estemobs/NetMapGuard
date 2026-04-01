@@ -1,4 +1,4 @@
-"""__main__.py – entry point: python -m netmapguard"""
+"""main.py – entry point: python main.py"""
 
 from __future__ import annotations
 
