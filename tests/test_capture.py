@@ -1,9 +1,9 @@
-"""Tests for netmapguard.capture module."""
+"""Tests for capture module."""
 
 import pytest
 from unittest.mock import MagicMock, patch
 
-from netmapguard.capture import is_public_ip, get_connections, Connection
+from capture import is_public_ip, get_connections, Connection
 
 
 # ── is_public_ip ──────────────────────────────────────────────────────────
@@ -68,8 +68,8 @@ def _make_sconn(raddr_ip, raddr_port, laddr_ip="192.168.1.5", laddr_port=54321,
 class TestGetConnections:
     def test_returns_public_established(self):
         conn = _make_sconn("8.8.8.8", 443)
-        with patch("netmapguard.capture.psutil.net_connections", return_value=[conn]):
-            with patch("netmapguard.capture.psutil.Process") as mock_proc:
+        with patch("capture.psutil.net_connections", return_value=[conn]):
+            with patch("capture.psutil.Process") as mock_proc:
                 mock_proc.return_value.name.return_value = "chrome"
                 result = get_connections()
         assert len(result) == 1
@@ -81,41 +81,41 @@ class TestGetConnections:
 
     def test_skips_private_remote(self):
         conn = _make_sconn("192.168.1.100", 8080)
-        with patch("netmapguard.capture.psutil.net_connections", return_value=[conn]):
+        with patch("capture.psutil.net_connections", return_value=[conn]):
             result = get_connections()
         assert result == []
 
     def test_skips_listen_status(self):
         conn = _make_sconn("8.8.8.8", 443, status="LISTEN")
-        with patch("netmapguard.capture.psutil.net_connections", return_value=[conn]):
+        with patch("capture.psutil.net_connections", return_value=[conn]):
             result = get_connections()
         assert result == []
 
     def test_no_remote_addr_skipped(self):
         m = MagicMock()
         m.raddr = None
-        with patch("netmapguard.capture.psutil.net_connections", return_value=[m]):
+        with patch("capture.psutil.net_connections", return_value=[m]):
             result = get_connections()
         assert result == []
 
     def test_deduplication(self):
         """Two identical connections should appear only once."""
         conn = _make_sconn("8.8.8.8", 443)
-        with patch("netmapguard.capture.psutil.net_connections", return_value=[conn, conn]):
+        with patch("capture.psutil.net_connections", return_value=[conn, conn]):
             result = get_connections()
         assert len(result) == 1
 
     def test_access_denied_returns_empty(self):
         import psutil as _psutil
-        with patch("netmapguard.capture.psutil.net_connections",
+        with patch("capture.psutil.net_connections",
                    side_effect=_psutil.AccessDenied(0)):
             result = get_connections()
         assert result == []
 
     def test_udp_proto_label(self):
         conn = _make_sconn("8.8.8.8", 53, sock_type=2)
-        with patch("netmapguard.capture.psutil.net_connections", return_value=[conn]):
-            with patch("netmapguard.capture.psutil.Process") as mock_proc:
+        with patch("capture.psutil.net_connections", return_value=[conn]):
+            with patch("capture.psutil.Process") as mock_proc:
                 mock_proc.return_value.name.return_value = "systemd-resolve"
                 result = get_connections()
         if result:
@@ -123,8 +123,8 @@ class TestGetConnections:
 
     def test_connection_id_format(self):
         conn = _make_sconn("8.8.8.8", 443, laddr_ip="10.0.0.5", laddr_port=60000)
-        with patch("netmapguard.capture.psutil.net_connections", return_value=[conn]):
-            with patch("netmapguard.capture.psutil.Process") as mock_proc:
+        with patch("capture.psutil.net_connections", return_value=[conn]):
+            with patch("capture.psutil.Process") as mock_proc:
                 mock_proc.return_value.name.return_value = "test"
                 result = get_connections()
         assert len(result) == 1

@@ -13,8 +13,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from .capture import get_connections
-from .enrich import geolocate, get_my_location
+from capture import get_connections
+from enrich import geolocate, get_my_location
 
 logger = logging.getLogger(__name__)
 

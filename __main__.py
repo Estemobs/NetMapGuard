@@ -29,7 +29,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Allow overriding the poll interval
-    from netmapguard import server as _srv
+    import server as _srv
     _srv._POLL_INTERVAL = args.poll_interval
 
     url = f"http://{args.host}:{args.port}"
@@ -40,7 +40,7 @@ def main() -> None:
         threading.Timer(1.5, lambda: webbrowser.open(url)).start()
 
     uvicorn.run(
-        "netmapguard.server:app",
+        "server:app",
         host=args.host,
         port=args.port,
         log_level="info",
