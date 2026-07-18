@@ -156,7 +156,21 @@ pytest tests/ -v
 
 ## Privacy note
 
-Remote IP geolocation requests are sent to **ip-api.com** (free tier, no account needed, up to 45 req/min). Results are cached in memory for 1 hour. No traffic payload or personal data is sent externally.
+Remote IP geolocation requests are sent to **ip-api.com** (free tier, no account needed, up to 45 req/min). Results are cached for 1 hour. No traffic payload or personal data is sent externally.
+
+---
+
+## Geolocation cache & offline fallback
+
+- **Persistent cache** — Lookups are cached in a local SQLite database (`.cache/geo_cache.sqlite3`), not just in memory. Restarting NetMapGuard no longer re-burns your ip-api.com quota for IPs you've already resolved; entries expire after 1 hour like before.
+- **Local GeoLite2 fallback** — If ip-api.com is unreachable or you hit its 45 req/min rate limit (common on a machine with many active connections), NetMapGuard can fall back to a local [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) City database so the map keeps working, even offline.
+
+  To enable it:
+  1. Create a free MaxMind account and download `GeoLite2-City.mmdb`.
+  2. Place it at `./GeoLite2-City.mmdb` (project root) or `~/.netmapguard/GeoLite2-City.mmdb`, or point `NETMAPGUARD_GEOIP_DB` at its path.
+  3. Install the optional dependency: `pip install geoip2` (already included in `requirements.txt`).
+
+  Without a database file present, NetMapGuard runs exactly as before — the fallback is skipped silently.
 
 ---
 

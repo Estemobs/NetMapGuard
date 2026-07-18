@@ -4,5 +4,10 @@ psutil>=6.0.0
 requests>=2.32.3
 starlette>=0.49.1
 
+# Optional: enables local GeoLite2 fallback when ip-api.com is rate-limited
+# or unreachable. Requires a GeoLite2-City.mmdb file (free MaxMind account,
+# see README) — the app runs fine without it, just without the fallback.
+geoip2>=4.8.0
+
 # Dev / testing
 pytest>=8.0.0

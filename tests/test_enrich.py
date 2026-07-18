@@ -3,6 +3,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
+import enrich
 from enrich import geolocate, get_my_location, clear_cache
 
 
@@ -115,3 +116,68 @@ class TestGetMyLocation:
         assert result["lat"] == 0.0
         assert result["lon"] == 0.0
         assert result["ip"] == "unknown"
+
+
+# ── Persistent (SQLite) cache ────────────────────────────────────────────
+
+class TestPersistentCache:
+    def setup_method(self):
+        clear_cache()
+
+    def test_survives_in_memory_cache_eviction(self):
+        """A lookup persisted to SQLite is served without hitting the network,
+        even if the in-memory dict cache no longer has it (e.g. after restart)."""
+        with patch("enrich._SESSION") as mock_sess:
+            mock_sess.get.return_value = _mock_response(SUCCESS_PAYLOAD)
+            geolocate("8.8.8.8")
+
+        # Simulate a process restart: the in-memory cache is gone, but the
+        # SQLite-backed cache is not.
+        enrich._CACHE.clear()
+
+        with patch("enrich._SESSION") as mock_sess:
+            result = geolocate("8.8.8.8")
+        assert mock_sess.get.call_count == 0
+        assert result["city"] == "Mountain View"
+
+    def test_clear_cache_wipes_sqlite_too(self):
+        with patch("enrich._SESSION") as mock_sess:
+            mock_sess.get.return_value = _mock_response(SUCCESS_PAYLOAD)
+            geolocate("8.8.8.8")
+
+        clear_cache()
+        assert enrich._db_get("8.8.8.8") is None
+
+
+# ── GeoLite2 local fallback ───────────────────────────────────────────────
+
+class TestGeoipFallback:
+    def setup_method(self):
+        clear_cache()
+
+    def test_falls_back_to_local_geoip_when_api_fails(self):
+        fake_city = MagicMock()
+        fake_city.location.latitude = 37.4
+        fake_city.location.longitude = -122.0
+        fake_city.city.name = "Mountain View"
+        fake_city.country.name = "United States"
+
+        fake_reader = MagicMock()
+        fake_reader.city.return_value = fake_city
+
+        with patch("enrich._SESSION") as mock_sess, \
+             patch("enrich._get_geoip_reader", return_value=fake_reader):
+            mock_sess.get.side_effect = ConnectionError("no network")
+            result = geolocate("8.8.8.8")
+
+        assert result is not None
+        assert result["lat"] == 37.4
+        assert result["city"] == "Mountain View"
+        assert result["country"] == "United States"
+
+    def test_no_fallback_available_returns_none(self):
+        with patch("enrich._SESSION") as mock_sess, \
+             patch("enrich._get_geoip_reader", return_value=None):
+            mock_sess.get.side_effect = ConnectionError("no network")
+            result = geolocate("8.8.8.8")
+        assert result is None
