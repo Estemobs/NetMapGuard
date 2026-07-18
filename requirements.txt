@@ -1,13 +1,51 @@
-fastapi>=0.115.12
-uvicorn[standard]>=0.30.0
-psutil>=6.0.0
-requests>=2.32.3
-starlette>=0.49.1
+# Pinned from a clean venv (Python 3.14) — regenerate with:
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install fastapi uvicorn[standard] psutil requests starlette geoip2 pytest
+#   pip freeze > requirements.txt
+fastapi==0.139.2
+uvicorn==0.51.0
+psutil==7.2.2
+requests==2.34.2
+starlette==1.3.1
 
 # Optional: enables local GeoLite2 fallback when ip-api.com is rate-limited
 # or unreachable. Requires a GeoLite2-City.mmdb file (free MaxMind account,
 # see README) — the app runs fine without it, just without the fallback.
-geoip2>=4.8.0
+geoip2==5.3.0
 
 # Dev / testing
-pytest>=8.0.0
+pytest==9.1.1
+
+# --- transitive dependencies (pinned for reproducibility) ---
+aiohappyeyeballs==2.7.1
+aiohttp==3.14.1
+aiosignal==1.4.0
+annotated-doc==0.0.4
+annotated-types==0.7.0
+anyio==4.14.2
+attrs==26.1.0
+certifi==2026.6.17
+charset-normalizer==3.4.9
+click==8.4.2
+frozenlist==1.8.0
+h11==0.16.0
+httptools==0.8.0
+idna==3.18
+iniconfig==2.3.0
+maxminddb==3.1.1
+multidict==6.7.1
+packaging==26.2
+pluggy==1.6.0
+propcache==0.5.2
+pydantic==2.13.4
+pydantic_core==2.46.4
+Pygments==2.20.0
+python-dotenv==1.2.2
+PyYAML==6.0.3
+typing-inspection==0.4.2
+typing_extensions==4.16.0
+urllib3==2.7.0
+uvloop==0.22.1
+watchfiles==1.2.0
+websockets==16.1.1
+yarl==1.24.2
