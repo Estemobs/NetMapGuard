@@ -2,6 +2,8 @@
 
 **Real-time network traffic visualiser on a world map.**
 
+![NetMapGuard screenshot](docs/screenshot.png)
+
 When you run NetMapGuard, it opens a web interface showing:
 
 - 📍 **Your machine** as a blue dot on the map.
