@@ -5,7 +5,10 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import platform
+import shutil
 import socket
+import subprocess
 import sys
 import webbrowser
 
@@ -17,6 +20,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Any Chromium-based browser can be launched "as an app": a plain window
+# with no address bar or tabs, so NetMapGuard opens looking like a real
+# desktop app instead of a browser tab pointed at a raw localhost URL.
+_CHROMIUM_LINUX_NAMES = [
+    "google-chrome-stable", "google-chrome", "chromium-browser", "chromium",
+    "brave-browser", "microsoft-edge-stable", "microsoft-edge",
+]
+_CHROMIUM_MACOS_PATHS = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+]
+# Edge ships with Windows 10/11 by default, so this is almost always found.
+_CHROMIUM_WINDOWS_PATH_TEMPLATES = [
+    r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
+    r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
+    r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
+    r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
+    r"%LocalAppData%\Google\Chrome\Application\chrome.exe",
+    r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe",
+    r"%LocalAppData%\BraveSoftware\Brave-Browser\Application\brave.exe",
+]
+
 
 def _port_in_use(host: str, port: int) -> bool:
     connect_host = "127.0.0.1" if host == "0.0.0.0" else host
@@ -25,21 +52,50 @@ def _port_in_use(host: str, port: int) -> bool:
         return sock.connect_ex((connect_host, port)) == 0
 
 
+def _find_chromium_browser() -> str | None:
+    system = platform.system()
+    if system == "Linux":
+        for name in _CHROMIUM_LINUX_NAMES:
+            path = shutil.which(name)
+            if path:
+                return path
+    elif system == "Darwin":
+        for path in _CHROMIUM_MACOS_PATHS:
+            if os.path.isfile(path):
+                return path
+    elif system == "Windows":
+        for template in _CHROMIUM_WINDOWS_PATH_TEMPLATES:
+            path = os.path.expandvars(template)
+            if os.path.isfile(path):
+                return path
+    return None
+
+
 def _open_browser(url: str) -> None:
     # PyInstaller's Linux bootloader points LD_LIBRARY_PATH at its bundled
-    # libs so the frozen app can find them, and that setting leaks into
-    # subprocesses webbrowser.open() spawns (e.g. xdg-open, itself a shell
-    # script) — those then crash trying to load PyInstaller's bundled
-    # libreadline/ncurses instead of the system's. Restore the original
-    # value just for this launch.
+    # libs so the frozen app can find them, and that setting leaks into any
+    # subprocess we spawn here — those then risk crashing trying to load
+    # PyInstaller's bundled libs instead of the system's. Restore the
+    # original value just for this launch.
     restore_key = None
     orig = os.environ.get("LD_LIBRARY_PATH_ORIG")
     if orig is not None:
         restore_key = os.environ.get("LD_LIBRARY_PATH")
         os.environ["LD_LIBRARY_PATH"] = orig
 
+    opened = False
     try:
-        opened = webbrowser.open(url)
+        browser_path = _find_chromium_browser()
+        if browser_path:
+            subprocess.Popen(
+                [browser_path, f"--app={url}", "--window-size=1280,860"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=(platform.system() != "Windows"),
+            )
+            opened = True
+        else:
+            opened = webbrowser.open(url)
     except Exception:
         opened = False
     finally:

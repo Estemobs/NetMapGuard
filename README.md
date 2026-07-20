@@ -32,13 +32,13 @@ Downloading a [release executable](#installation--launch) needs nothing but the 
 
 The simplest way to use NetMapGuard is to download the ready-made executable for your OS — no Python, no terminal commands, nothing to install. Grab it from the **[Releases page](https://github.com/Estemobs/NetMapGuard/releases/latest)**.
 
-In every case, once it starts, NetMapGuard automatically opens the map **in your default browser** — you don't need to type an address yourself. If the browser doesn't pop up for some reason, the address to open manually (e.g. `http://127.0.0.1:8888`) is printed on the first line of output.
+In every case, once it starts, NetMapGuard automatically opens **a plain app window with the map in it** — no address bar, no tabs, nothing to type. It does this by launching whatever Chromium-based browser it finds (Edge, Chrome, Brave…) in "app mode"; on Windows that's Edge, which ships with the OS, so this works out of the box. If none is found (e.g. a Linux machine with only Firefox installed), it falls back to opening a normal browser tab, and if that also fails the address to open manually (e.g. `http://127.0.0.1:8888`) is printed on the first line of output.
 
 ### 🪟 Windows
 
 1. Download `netmapguard-windows-x86_64.exe`.
 2. Double-click it.
-3. A console window opens (that's normal — it shows the live logs) and, a moment later, your browser opens the map. **Keep the console window open** while you use NetMapGuard; closing it stops the app.
+3. A console window opens (that's normal — it shows the live logs) and, a moment later, an app window with the map opens on top. **Keep the console window open** while you use NetMapGuard; closing it stops the app.
 
 > Windows SmartScreen may warn about an "unrecognised app" the first time — click **More info → Run anyway** (the binary isn't code-signed).
 
@@ -49,7 +49,7 @@ In every case, once it starts, NetMapGuard automatically opens the map **in your
    ```bash
    chmod +x netmapguard-macos-arm64
    ```
-3. Double-click the file in Finder (or run `./netmapguard-macos-arm64` in the terminal). Your browser opens the map automatically.
+3. Double-click the file in Finder (or run `./netmapguard-macos-arm64` in the terminal). An app window with the map opens automatically.
 
 > Gatekeeper will likely block the first launch ("cannot be opened because the developer cannot be verified"). Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to the NetMapGuard warning, then try again.
 
@@ -61,7 +61,7 @@ Downloaded files aren't executable by default on Linux, and most file managers w
 2. Make it executable **once** — either:
    - in a terminal: `chmod +x netmapguard-linux-x86_64`, or
    - in your file manager: right-click the file → **Properties → Permissions** → tick **Allow executing file as program**.
-3. Double-click it (or run `./netmapguard-linux-x86_64` from a terminal). A terminal window may briefly show the startup logs, and your browser opens automatically at the map — you never need to type `127.0.0.1` yourself.
+3. Double-click it (or run `./netmapguard-linux-x86_64` from a terminal). A window with the map opens automatically — you never need to type `127.0.0.1` yourself. (This needs Chrome, Chromium, Brave, or Edge to be installed to get a clean app window; with only Firefox installed, it opens a normal browser tab instead.)
 
 > Need to see *your own* processes' full connection list, not just remote endpoints? Run it with `sudo ./netmapguard-linux-x86_64` — see [Permissions](#permissions) below.
 
