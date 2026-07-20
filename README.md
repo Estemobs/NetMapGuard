@@ -28,14 +28,26 @@ When you run NetMapGuard, it opens a web interface showing:
 
 ## Installation
 
-### 1. Clone the repository
+### Option A — Download a release (no Python required)
+
+Grab the standalone executable for your OS from the [Releases page](https://github.com/Estemobs/NetMapGuard/releases) and run it directly:
+
+- **Windows:** double-click `netmapguard-windows-x86_64.exe` (a console window opens showing logs — close it to stop NetMapGuard).
+- **macOS:** `chmod +x netmapguard-macos-arm64 && ./netmapguard-macos-arm64`
+- **Linux:** `chmod +x netmapguard-linux-x86_64 && ./netmapguard-linux-x86_64`
+
+No virtual environment or `pip install` needed. See [Permissions](#permissions) below for `sudo`/Administrator notes.
+
+### Option B — Run from source
+
+#### 1. Clone the repository
 
 ```bash
 git clone https://github.com/Estemobs/NetMapGuard.git
 cd NetMapGuard
 ```
 
-### 2. Create and activate a virtual environment
+#### 2. Create and activate a virtual environment
 
 **Linux / macOS:**
 ```bash
@@ -49,7 +61,7 @@ python -m venv .venv
 .venv\Scripts\activate
 ```
 
-### 3. Install dependencies
+#### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -62,6 +74,8 @@ pip install -r requirements.txt
 ```bash
 python main.py
 ```
+
+(If you downloaded a release executable instead, replace `python main.py` with the executable, e.g. `./netmapguard-linux-x86_64` — all flags below work the same way.)
 
 This will:
 1. Resolve the approximate location of your public IP.
@@ -129,6 +143,8 @@ NetMapGuard/
 │   ├── leaflet.js/css  Map library
 │   └── images/         Map icons
 ├── tests/              Unit tests (29 tests)
+├── netmapguard.spec    PyInstaller build spec (standalone executable)
+├── .github/workflows/  CI: builds & publishes release executables
 ├── requirements.txt    Dependencies
 └── README.md           This file
 ```
@@ -151,6 +167,20 @@ NetMapGuard/
 pip install pytest
 pytest tests/ -v
 ```
+
+---
+
+## Building a standalone executable
+
+Releases are built with [PyInstaller](https://pyinstaller.org/) using the bundled `netmapguard.spec`:
+
+```bash
+pip install -r requirements.txt
+pip install pyinstaller
+pyinstaller netmapguard.spec
+```
+
+The executable is written to `dist/netmapguard` (`dist/netmapguard.exe` on Windows). Pushing a `vX.Y.Z` tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds Linux/macOS/Windows binaries and publishes them to the GitHub Release.
 
 ---
 

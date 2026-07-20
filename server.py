@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import pathlib
+import sys
 from typing import Dict, Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -25,7 +26,10 @@ logger = logging.getLogger(__name__)
 _clients: Set[WebSocket] = set()
 _POLL_INTERVAL = 2.0  # seconds between connection polls
 
-STATIC_DIR = pathlib.Path(__file__).parent / "static"
+# When packaged with PyInstaller, bundled data (static/) is extracted to
+# sys._MEIPASS rather than sitting next to this file.
+_BASE_DIR = pathlib.Path(getattr(sys, "_MEIPASS", pathlib.Path(__file__).parent))
+STATIC_DIR = _BASE_DIR / "static"
 
 # ---------------------------------------------------------------------------
 # Application

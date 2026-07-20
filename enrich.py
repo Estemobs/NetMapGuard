@@ -9,6 +9,7 @@ import logging
 import os
 import pathlib
 import sqlite3
+import sys
 import threading
 import time
 from typing import Dict, Optional, Tuple
@@ -31,7 +32,20 @@ _SESSION.headers.update({"User-Agent": "NetMapGuard/2.0"})
 # ip-api.com free-tier quota (45 req/min) every time NetMapGuard is launched.
 # ---------------------------------------------------------------------------
 
-_DB_PATH = pathlib.Path(__file__).parent / ".cache" / "geo_cache.sqlite3"
+
+def _user_data_dir() -> pathlib.Path:
+    """Writable per-user directory for cache/config data.
+
+    A packaged (PyInstaller) build may live in a read-only location (e.g.
+    Program Files) or run from a temporary extraction dir, so it can't rely
+    on writing next to its own source file the way a plain script can.
+    """
+    if getattr(sys, "frozen", False):
+        return pathlib.Path.home() / ".netmapguard"
+    return pathlib.Path(__file__).parent
+
+
+_DB_PATH = _user_data_dir() / ".cache" / "geo_cache.sqlite3"
 _DB_LOCK = threading.Lock()
 
 
@@ -90,7 +104,7 @@ except ImportError:
 
 _GEOIP_DB_ENV_VAR = "NETMAPGUARD_GEOIP_DB"
 _DEFAULT_GEOIP_PATHS = [
-    pathlib.Path(__file__).parent / "GeoLite2-City.mmdb",
+    _user_data_dir() / "GeoLite2-City.mmdb",
     pathlib.Path.home() / ".netmapguard" / "GeoLite2-City.mmdb",
 ]
 

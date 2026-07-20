@@ -39,8 +39,11 @@ def main() -> None:
         import threading
         threading.Timer(1.5, lambda: webbrowser.open(url)).start()
 
+    # Pass the app object directly (rather than the "server:app" import
+    # string) so this works when frozen into a standalone executable, where
+    # uvicorn's string-based module reload/import machinery isn't reliable.
     uvicorn.run(
-        "server:app",
+        _srv.app,
         host=args.host,
         port=args.port,
         log_level="info",
