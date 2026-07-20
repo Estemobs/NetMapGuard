@@ -74,14 +74,22 @@ def _find_chromium_browser() -> str | None:
 def _open_browser(url: str) -> None:
     # PyInstaller's Linux bootloader points LD_LIBRARY_PATH at its bundled
     # libs so the frozen app can find them, and that setting leaks into any
-    # subprocess we spawn here — those then risk crashing trying to load
-    # PyInstaller's bundled libs instead of the system's. Restore the
-    # original value just for this launch.
-    restore_key = None
-    orig = os.environ.get("LD_LIBRARY_PATH_ORIG")
-    if orig is not None:
-        restore_key = os.environ.get("LD_LIBRARY_PATH")
-        os.environ["LD_LIBRARY_PATH"] = orig
+    # subprocess we spawn here (a browser, xdg-open, and — since xdg-open is
+    # itself a shell script — the /bin/sh that runs it). Those then risk
+    # loading PyInstaller's bundled libs (e.g. an older libreadline) instead
+    # of the system's and crashing with a symbol mismatch. Neutralise it for
+    # this launch: restore PyInstaller's saved pre-launch value if it saved
+    # one, otherwise just drop it outright — none of these external tools
+    # need it.
+    ld_key = "LD_LIBRARY_PATH"
+    had_ld_path = ld_key in os.environ
+    prev_ld_path = os.environ.get(ld_key)
+    if had_ld_path:
+        orig = os.environ.get("LD_LIBRARY_PATH_ORIG")
+        if orig:
+            os.environ[ld_key] = orig
+        else:
+            os.environ.pop(ld_key, None)
 
     opened = False
     try:
@@ -99,11 +107,8 @@ def _open_browser(url: str) -> None:
     except Exception:
         opened = False
     finally:
-        if orig is not None:
-            if restore_key is not None:
-                os.environ["LD_LIBRARY_PATH"] = restore_key
-            else:
-                os.environ.pop("LD_LIBRARY_PATH", None)
+        if had_ld_path:
+            os.environ[ld_key] = prev_ld_path
 
     if not opened:
         logger.warning("Could not open a browser automatically — open %s manually.", url)
