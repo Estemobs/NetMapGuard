@@ -32,12 +32,28 @@ def main() -> None:
     import server as _srv
     _srv._POLL_INTERVAL = args.poll_interval
 
+    # 0.0.0.0 means "listen on every interface" — it isn't a valid address
+    # to *open in a browser*, so point the browser at localhost instead.
+    browser_host = "127.0.0.1" if args.host == "0.0.0.0" else args.host
     url = f"http://{args.host}:{args.port}"
+    browser_url = f"http://{browser_host}:{args.port}"
     logger.info("Starting NetMapGuard at %s", url)
 
     if not args.no_browser:
         import threading
-        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+
+        def _open_browser() -> None:
+            try:
+                opened = webbrowser.open(browser_url)
+            except Exception:
+                opened = False
+            if not opened:
+                logger.warning(
+                    "Could not open a browser automatically — open %s manually.",
+                    browser_url,
+                )
+
+        threading.Timer(1.5, _open_browser).start()
 
     # Pass the app object directly (rather than the "server:app" import
     # string) so this works when frozen into a standalone executable, where

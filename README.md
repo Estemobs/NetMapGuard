@@ -17,6 +17,8 @@ When you run NetMapGuard, it opens a web interface showing:
 
 ## Requirements
 
+Downloading a [release executable](#installation--launch) needs nothing but the OS itself. Running from source needs:
+
 | Dependency | Purpose |
 |---|---|
 | Python ≥ 3.10 | Runtime |
@@ -26,66 +28,49 @@ When you run NetMapGuard, it opens a web interface showing:
 
 ---
 
-## Installation
+## Installation & launch
 
-### Option A — Download a release (no Python required)
+The simplest way to use NetMapGuard is to download the ready-made executable for your OS — no Python, no terminal commands, nothing to install. Grab it from the **[Releases page](https://github.com/Estemobs/NetMapGuard/releases/latest)**.
 
-Grab the standalone executable for your OS from the [Releases page](https://github.com/Estemobs/NetMapGuard/releases) and run it directly:
+In every case, once it starts, NetMapGuard automatically opens the map **in your default browser** — you don't need to type an address yourself. If the browser doesn't pop up for some reason, the address to open manually (e.g. `http://127.0.0.1:8888`) is printed on the first line of output.
 
-- **Windows:** double-click `netmapguard-windows-x86_64.exe` (a console window opens showing logs — close it to stop NetMapGuard).
-- **macOS:** `chmod +x netmapguard-macos-arm64 && ./netmapguard-macos-arm64`
-- **Linux:** `chmod +x netmapguard-linux-x86_64 && ./netmapguard-linux-x86_64`
+### 🪟 Windows
 
-No virtual environment or `pip install` needed. See [Permissions](#permissions) below for `sudo`/Administrator notes.
+1. Download `netmapguard-windows-x86_64.exe`.
+2. Double-click it.
+3. A console window opens (that's normal — it shows the live logs) and, a moment later, your browser opens the map. **Keep the console window open** while you use NetMapGuard; closing it stops the app.
 
-### Option B — Run from source
+> Windows SmartScreen may warn about an "unrecognised app" the first time — click **More info → Run anyway** (the binary isn't code-signed).
 
-#### 1. Clone the repository
+### 🍎 macOS
 
-```bash
-git clone https://github.com/Estemobs/NetMapGuard.git
-cd NetMapGuard
-```
+1. Download `netmapguard-macos-arm64`.
+2. Open a terminal in the download folder and make it executable **once**:
+   ```bash
+   chmod +x netmapguard-macos-arm64
+   ```
+3. Double-click the file in Finder (or run `./netmapguard-macos-arm64` in the terminal). Your browser opens the map automatically.
 
-#### 2. Create and activate a virtual environment
+> Gatekeeper will likely block the first launch ("cannot be opened because the developer cannot be verified"). Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to the NetMapGuard warning, then try again.
 
-**Linux / macOS:**
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
+### 🐧 Linux
 
-**Windows:**
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-```
+Downloaded files aren't executable by default on Linux, and most file managers won't run a random binary on double-click until you flip that on — that's what makes it feel more complicated than it should. Do it once and it's a normal double-click app from then on:
 
-#### 3. Install dependencies
+1. Download `netmapguard-linux-x86_64`.
+2. Make it executable **once** — either:
+   - in a terminal: `chmod +x netmapguard-linux-x86_64`, or
+   - in your file manager: right-click the file → **Properties → Permissions** → tick **Allow executing file as program**.
+3. Double-click it (or run `./netmapguard-linux-x86_64` from a terminal). A terminal window may briefly show the startup logs, and your browser opens automatically at the map — you never need to type `127.0.0.1` yourself.
 
-```bash
-pip install -r requirements.txt
-```
+> Need to see *your own* processes' full connection list, not just remote endpoints? Run it with `sudo ./netmapguard-linux-x86_64` — see [Permissions](#permissions) below.
 
----
+### Command-line options (all platforms)
 
-## Running
-
-```bash
-python main.py
-```
-
-(If you downloaded a release executable instead, replace `python main.py` with the executable, e.g. `./netmapguard-linux-x86_64` — all flags below work the same way.)
-
-This will:
-1. Resolve the approximate location of your public IP.
-2. Start the web server on **http://127.0.0.1:8888**.
-3. Automatically open the map in your default browser.
-
-### Options
+The executable accepts the same flags whether run from Windows, macOS or Linux:
 
 ```
-python main.py --help
+netmapguard --help
 
 options:
   --host HOST           Bind host (default: 127.0.0.1)
@@ -94,11 +79,26 @@ options:
   --poll-interval SEC   Connection poll interval in seconds (default: 2)
 ```
 
-### Example – expose on the local network
+Example – expose it on your local network so another device can view the map:
+```bash
+netmapguard --host 0.0.0.0 --port 8888
+```
+
+---
+
+## Running from source (for development)
+
+If you want to modify the code instead of just running it:
 
 ```bash
-python main.py --host 0.0.0.0 --port 8888
+git clone https://github.com/Estemobs/NetMapGuard.git
+cd NetMapGuard
+python3 -m venv .venv && source .venv/bin/activate   # Windows: python -m venv .venv && .venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
 ```
+
+`python main.py` behaves exactly like the packaged executable, including the automatic browser launch and every `--flag` above.
 
 ---
 
@@ -106,8 +106,8 @@ python main.py --host 0.0.0.0 --port 8888
 
 | Platform | Notes |
 |---|---|
-| **Linux** | `psutil.net_connections()` requires either `root` **or** running as the same user as the processes you want to see. Run with `sudo` for a complete view: `sudo python main.py` |
-| **macOS** | Same as Linux. Full process names visible only for your own processes unless `sudo` is used. |
+| **Linux** | `psutil.net_connections()` requires either `root` **or** running as the same user as the processes you want to see. Run with `sudo` for a complete view: `sudo ./netmapguard-linux-x86_64` (or `sudo python main.py` from source). |
+| **macOS** | Same as Linux. Full process names visible only for your own processes unless run with `sudo`. |
 | **Windows** | No special permissions needed for standard TCP/UDP connections. Run as Administrator for complete process names. |
 
 ---
