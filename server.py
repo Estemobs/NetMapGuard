@@ -35,7 +35,7 @@ STATIC_DIR = _BASE_DIR / "static"
 # Application
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="NetMapGuard", version="2.0.0")
+app = FastAPI(title="NetMapGuard", version="2.1.0")
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
