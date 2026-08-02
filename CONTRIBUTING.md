@@ -27,4 +27,4 @@ Un tag `vX.Y.Z` déclenche la CI qui compile les binaires Windows/macOS/Linux et
 
 ## Licence
 
-Ce projet est sous licence CC BY-NC-SA 4.0 (usage non commercial).
+This project is licensed under the MIT License.
