@@ -2,7 +2,7 @@
 #   python3 -m venv .venv && source .venv/bin/activate
 #   pip install fastapi uvicorn[standard] psutil requests starlette geoip2 pytest
 #   pip freeze > requirements.txt
-fastapi==0.139.2
+fastapi==0.141.1
 uvicorn==0.51.0
 psutil==7.2.2
 requests==2.34.2
