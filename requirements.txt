@@ -42,7 +42,7 @@ pydantic_core==2.48.0
 Pygments==2.20.0
 python-dotenv==1.2.2
 PyYAML==6.0.3
-typing-inspection==0.4.2
+typing-inspection==0.4.3
 typing_extensions==4.16.0
 urllib3==2.7.0
 uvloop==0.22.1
