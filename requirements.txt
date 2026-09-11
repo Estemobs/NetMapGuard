@@ -32,7 +32,7 @@ h11==0.16.0
 httptools==0.8.0
 idna==3.19
 iniconfig==2.3.0
-maxminddb==3.1.1
+maxminddb==3.2.0
 multidict==6.8.0
 packaging==26.3
 pluggy==1.6.0
