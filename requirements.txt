@@ -6,7 +6,7 @@ fastapi==0.141.1
 uvicorn==0.53.0
 psutil==7.2.2
 requests==2.34.2
-starlette==1.6.0
+starlette==1.7.0
 
 # Optional: enables local GeoLite2 fallback when ip-api.com is rate-limited
 # or unreachable. Requires a GeoLite2-City.mmdb file (free MaxMind account,
