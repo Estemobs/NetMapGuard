@@ -2,7 +2,7 @@
 #   python3 -m venv .venv && source .venv/bin/activate
 #   pip install fastapi uvicorn[standard] psutil requests starlette geoip2 pytest
 #   pip freeze > requirements.txt
-fastapi==0.143.1
+fastapi==0.143.2
 uvicorn==0.54.0
 psutil==7.2.2
 requests==2.34.2
@@ -35,7 +35,7 @@ iniconfig==2.3.1
 maxminddb==3.2.0
 multidict==6.9.1
 packaging==26.3
-pluggy==1.6.0
+pluggy==1.7.0
 propcache==0.5.4
 pydantic==2.14.1
 pydantic_core==2.50.1
