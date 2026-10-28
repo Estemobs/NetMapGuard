@@ -25,7 +25,7 @@ _GEO_URL = "http://ip-api.com/json/{ip}?fields=status,lat,lon,city,country,org,a
 _MY_GEO_URL = "http://ip-api.com/json/?fields=status,lat,lon,city,country,query"
 
 _SESSION = requests.Session()
-_SESSION.headers.update({"User-Agent": "NetMapGuard/2.0"})
+_SESSION.headers.update({"User-Agent": "NetMapGuard/2.1.6"})
 
 # ---------------------------------------------------------------------------
 # Persistent cache (SQLite) – survives restarts so we don't re-burn the

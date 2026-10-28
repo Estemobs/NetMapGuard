@@ -206,8 +206,8 @@ Remote IP geolocation requests are sent to **ip-api.com** (free tier, no account
 
 ## Project status
 
-Version 2.1.5 — the features above are shipped and stable.
-No open functional issue; dependency updates are automated with Renovate.
+Version 2.1.6 — the features above are shipped.
+No open functional issues; dependency updates are automated with Renovate.
 
 ## License
 
