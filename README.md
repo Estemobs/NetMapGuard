@@ -204,6 +204,11 @@ Remote IP geolocation requests are sent to **ip-api.com** (free tier, no account
 
 ---
 
+## Project status
+
+Version 2.1.5 — the features above are shipped and stable.
+No open functional issue; dependency updates are automated with Renovate.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE) — you are free to use, modify and distribute it, including for commercial purposes, provided the copyright notice and permission notice are included.
